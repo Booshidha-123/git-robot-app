@@ -1,137 +1,122 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { setCookie, getCookie } from "cookies-next";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import FormField from "@/components/formfield";
+import CommandBlock from "@/components/commandblock";
+import {
+  TEMPLATE_LIST,
+  templateCloneReadme,
+  templateFeatureBranch,
+  templateNewFile,
+} from "@/lib/commands";
 
-export default function HomePage() {
-  const handlePush = async () => {
-  const token = document.cookie.split("githubToken=")[1]?.split(";")[0];
-  const owner = document.cookie.split("githubOwner=")[1]?.split(";")[0];
-  const repo = document.cookie.split("githubRepo=")[1]?.split(";")[0];
-
-  const res = await fetch("/api/gitpush", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      token,
-      owner,
-      repo,
-      filename: "test.txt",
-      content: "Hello from Next.js 🚀",
-      message: "Initial commit",
-    }),
-  });
-
-  const data = await res.json();
-  alert(data.message || " " + data.error);
-};
-
+export default function Home() {
   const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [token, setToken] = useState("");
   const [owner, setOwner] = useState("");
   const [repo, setRepo] = useState("");
+  const [token, setToken] = useState("");
 
+  // load/save (avoid storing token)
   useEffect(() => {
-    setUsername(getCookie("username") as string || "");
-    setEmail(getCookie("email") as string || "");
-    setToken(getCookie("token") as string || "");
-    setOwner(getCookie("owner") as string || "");
-    setRepo(getCookie("repo") as string || "");
+    try {
+      const saved = JSON.parse(
+        localStorage.getItem("git-robot:lastForm") || "{}"
+      );
+      if (saved.username) setUsername(saved.username);
+      if (saved.owner) setOwner(saved.owner);
+      if (saved.repo) setRepo(saved.repo);
+    } catch {}
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-      setCookie("username", username);
-    setCookie("email", email);
-    setCookie("token", token);
-    setCookie("owner", owner);
-    setCookie("repo", repo);
-    const res = await fetch("/api", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, email }),
-    });
+  useEffect(() => {
+    localStorage.setItem(
+      "git-robot:lastForm",
+      JSON.stringify({ username, owner, repo })
+    );
+  }, [username, owner, repo]);
 
-    const data = await res.json();
-    if (data.success) {
-      alert(" Saved & Git Config Updated!");
-    } else {
-      alert(" Error: " + data.error);
-    }
-  };
-  
-  
+  const inputs = useMemo(
+    () => ({ username, owner, repo, token }),
+    [username, owner, repo, token]
+  );
+
+  const previews = useMemo(
+    () => [
+      { title: "Clone & Update README", commands: templateCloneReadme(inputs) },
+      { title: "Feature Branch + README tweak", commands: templateFeatureBranch(inputs) },
+      { title: "Add new file and push", commands: templateNewFile(inputs) },
+    ],
+    [inputs]
+  );
+
+  const query = new URLSearchParams({
+    username: username || "",
+    owner: owner || "",
+    repo: repo || "",
+    // IMPORTANT: do NOT pass token in URL. Dynamic page will still build clone URL without token.
+  }).toString();
 
   return (
-    <main className="p-6">
-      <button
-  onClick={handlePush}
-  className="mt-4 p-2 bg-green-600 text-white rounded-lg"
->
-  Commit & Push
-</button>
+    <div className="max-w-3xl mx-auto p-6 space-y-6">
+      <h1 className="text-2xl font-bold">Git Command Robot</h1>
+      <p className="text-sm text-gray-500">
+        Enter details and preview command templates. (Execution will come in Week 5)
+      </p>
 
-      <h1 className="text-2xl font-bold mb-4">GitHub Project Setup</h1>
-      <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
-        <div>
-          <label className="block font-medium">Username</label>
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="border p-2 w-full rounded"
-            required
-          />
-        </div>
-        <div>
-          <label className="block font-medium">Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="border p-2 w-full rounded"
-            required
-          />
-        </div>
-        <div>
-          <label className="block font-medium">Token</label>
-          <input
-            type="password"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            className="border p-2 w-full rounded"
-            required
-          />
-        </div>
-        <div>
-          <label className="block font-medium">Owner</label>
-          <input
-            type="text"
-            value={owner}
-            onChange={(e) => setOwner(e.target.value)}
-            className="border p-2 w-full rounded"
-            required
-          />
-        </div>
-        <div>
-          <label className="block font-medium">Repo</label>
-          <input
-            type="text"
-            value={repo}
-            onChange={(e) => setRepo(e.target.value)}
-            className="border p-2 w-full rounded"
-            required
-          />
-        </div>
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
-          Save & Configure
-        </button>
+      <form className="grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={(e) => e.preventDefault()}>
+        <FormField
+          label="Username"
+          name="username"
+          value={username}
+          onChange={(e) => setUsername(e.currentTarget.value)}
+          placeholder="alice"
+          required
+        />
+        <FormField
+          label="Owner (org/user)"
+          name="owner"
+          value={owner}
+          onChange={(e) => setOwner(e.currentTarget.value)}
+          placeholder="alice-or-org"
+          required
+        />
+        <FormField
+          label="Repo"
+          name="repo"
+          value={repo}
+          onChange={(e) => setRepo(e.currentTarget.value)}
+          placeholder="my-repo"
+          required
+        />
+        <FormField
+          label="Token (optional – not stored)"
+          name="token"
+          type="password"
+          value={token}
+          onChange={(e) => setToken(e.currentTarget.value)}
+          placeholder="ghp_***"
+        />
       </form>
-      
-    </main>
+
+      <div className="rounded-xl border p-4">
+        <h2 className="font-semibold mb-3">Preview (3 templates)</h2>
+        {previews.map((p, idx) => (
+          <CommandBlock key={idx} title={p.title} commands={p.commands} />
+        ))}
+
+        <div className="flex flex-wrap gap-2 mt-2">
+          {TEMPLATE_LIST.map((t) => (
+            <Link
+              key={t.id}
+              href={`/templates/${t.id}?${query}`}
+              className="px-3 py-1 rounded border text-sm"
+            >
+              Open “{t.title}”
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }

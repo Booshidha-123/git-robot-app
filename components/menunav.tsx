@@ -15,3 +15,9 @@ export default function MenuButton({ onClick }: MenuButtonProps) {
     </button>
   );
 }
+const tabs = [
+  { name: 'Home', href: '/' },
+  { name: 'Commands', href: '/command' },
+  { name: 'About', href: '/about' },
+]
+
