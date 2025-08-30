@@ -1,0 +1,28 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Command {
+  id          Int         @id @default(autoincrement())
+  title       String      @unique
+  description String
+  snippet     String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  executions  Execution[]
+}
+
+model Execution {
+  id        Int      @id @default(autoincrement())
+  commandId Int
+  command   Command  @relation(fields: [commandId], references: [id], onDelete: Cascade)
+  username  String?
+  status    String   @default("pending") // 'pending' | 'success' | 'error'
+  output    String?
+  createdAt DateTime @default(now())
+}
